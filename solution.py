@@ -22,11 +22,13 @@ OP_MERGES = {
     '<=': {
         '<': '<',
         '==': '==',
-        '!=': '<' },
+        '!=': '<',
+        '>=': '==' },
     '>=': {
         '>': '>',
         '==': '==',
-        '!=': '>' },
+        '!=': '>',
+        '<=': '==' },
     '==': {
         '<=': '==',
         '>=': '==' },
@@ -50,6 +52,22 @@ class TestSolution(unittest.TestCase):
         self.assertEqual(solve(">3.0 >3.1"), ">3.1")
         self.assertEqual(solve(">2 >=2.1 <4 !=4.5"), ">=2.1 <4")
         self.assertEqual(solve(">3 >=2.1 <=4.5 !=5.0"), ">3 <=4.5")
+
+        # Tests I failed in my original submission:
+
+        # These first two were wrong just b/c I forgot two entries in the
+        # OP_MERGES dictionary. :(
+        self.assertEqual(solve('>=3 <=3.0'), '==3')
+        self.assertEqual(solve('>=3.0 <=3.0.0'), '==3.0')
+
+        # All of these I incorrectly categorized as "unsatisfiable". For some
+        # reason I was thinking that if you were pinned to a specific revision
+        # (e.g. ==2.1), any other <, >, <=, >= requirements would be invalid. Doh!
+        self.assertEqual(solve('>=1 ==2.1.2'), '==2.1.2')
+        self.assertEqual(solve('<=3 ==2.1.2'), '==2.1.2')
+        self.assertEqual(solve('>=1 <=3 ==2.1.2'), '==2.1.2')
+        self.assertEqual(solve('>=1 <=1'), '==1')
+
 
     def test_unsatisfiable(self):
         expected = 'unsatisfiable'
@@ -175,13 +193,15 @@ def minimize(reqs):
 
     op_str = ' '.join([r.op for r in reqs])
     if '==' in op_str:
-        if '<' in op_str or '>' in op_str:
-            raise Unsatisfiable
+        found = None
         for i, req in enumerate(reqs):
             if req.op == '==':
-                if '==' in ' '.join([r.op for r in reqs[i + 1:]]):
+                if found:
                     raise Unsatisfiable
-                return [req]
+                found = req
+            elif ('<' in req.op and not found) or ('>' in req.op and found):
+                raise Unsatisfiable
+        return [found]
     
     for i, req in enumerate(reqs):
         remainder = reqs[i + 1:]
